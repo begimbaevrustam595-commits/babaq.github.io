@@ -2,78 +2,235 @@
 <html lang="uz">
 <head>
   <meta charset="UTF-8">
-  <title>Babaq Shajarasi</title>
-  <link rel="stylesheet" href="https://fperucic.github.io/treant-js/Treant.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Babaq avlodlari shajarasi</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f6f8;
       margin: 0;
-      padding: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f4f8fb;
       text-align: center;
+      overflow-x: hidden;
     }
 
-    h2 {
-      background: #004aad;
+    header {
+      background: linear-gradient(90deg, #003c96, #0055d4);
       color: white;
-      padding: 15px 0;
-      margin: 0;
+      font-size: 24px;
+      font-weight: bold;
+      padding: 20px;
+      letter-spacing: 0.5px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
     }
 
-    #tree {
-      width: 100%;
-      height: 90vh;
-      overflow: auto;
-      margin-top: 10px;
+    .controls {
+      margin: 15px 0;
     }
 
     button {
-      background: #ffb300;
+      background-color: #007bff;
+      color: white;
       border: none;
-      padding: 10px 20px;
-      font-size: 16px;
-      border-radius: 5px;
+      border-radius: 6px;
+      padding: 10px 15px;
+      margin: 5px;
       cursor: pointer;
-      margin: 10px;
+      font-weight: bold;
+      transition: all 0.2s;
     }
 
     button:hover {
-      background: #ffaa00;
+      background-color: #0056b3;
+      transform: scale(1.05);
+    }
+
+    .tree-container {
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+      padding: 20px;
+    }
+
+    .tree ul {
+      position: relative;
+      padding-top: 20px;
+      transition: all 0.5s;
+      display: flex;
+      justify-content: center;
+    }
+
+    .tree li {
+      list-style-type: none;
+      text-align: center;
+      position: relative;
+      padding: 20px 5px 0 5px;
+      transition: all 0.5s;
+    }
+
+    /* Chiziqlar */
+    .tree li::before, .tree li::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      border-top: 2px solid #ccc;
+      width: 50%;
+      height: 20px;
+    }
+
+    .tree li::before {
+      right: 50%;
+      border-right: 2px solid #ccc;
+    }
+
+    .tree li::after {
+      left: 50%;
+      border-left: 2px solid #ccc;
+    }
+
+    .tree li:only-child::before, .tree li:only-child::after {
+      display: none;
+    }
+
+    .tree li:only-child {
+      padding-top: 0;
+    }
+
+    /* Tugun (shaxs) ko‘rinishi */
+    .tree li span {
+      display: inline-block;
+      background: white;
+      border: 2px solid #007bff;
+      border-radius: 50px;
+      padding: 10px 18px;
+      color: #333;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      transition: 0.3s;
+    }
+
+    .tree li span:hover {
+      background: #e8f0ff;
+      transform: scale(1.05);
+    }
+
+    .selected {
+      background: #007bff !important;
+      color: white !important;
+      box-shadow: 0 0 15px rgba(0,123,255,0.7);
     }
   </style>
 </head>
 <body>
-  <h2>Babaq avlodlari shajarasi</h2>
-  <button onclick="addChild()">+ O‘g‘il qo‘shish</button>
-  <div id="tree"></div>
 
-  <!-- Treant kutubxonalari -->
-  <script src="https://fperucic.github.io/treant-js/vendor/raphael.js"></script>
-  <script src="https://fperucic.github.io/treant-js/Treant.js"></script>
+  <header>🌳 Babaq avlodlari shajarasi</header>
+
+  <div class="controls">
+    <button onclick="addChild()">➕ O‘g‘il qo‘shish</button>
+    <button onclick="deleteSelected()">❌ Belgilangan shaxsni o‘chirish</button>
+    <button onclick="saveTree()">💾 Saqlash</button>
+    <button onclick="resetTree()">♻️ Qayta tiklash</button>
+  </div>
+
+  <div class="tree-container">
+    <div id="tree" class="tree"></div>
+  </div>
 
   <script>
-    let config = {
-      chart: {
-        container: "#tree",
-        node: { collapsable: true },
-        animation: { nodeAnimation: "easeOutBounce", nodeSpeed: 700 }
-      },
-      nodeStructure: {
-        text: { name: "Babaq" },
-        children: []
-      }
+    // Boshlang‘ich daraxt
+    const defaultTree = {
+      name: "Babaq",
+      children: [
+        { name: "Dauletnazar", children: [] },
+        { name: "Xakim Bolis", children: [] }
+      ]
     };
 
-    let chart = new Treant(config);
+    let treeData = JSON.parse(localStorage.getItem("babaqTree")) || structuredClone(defaultTree);
+    let selectedNodeName = null;
 
+    // Daraxtni chizish
+    function renderTree() {
+      const treeContainer = document.getElementById("tree");
+      treeContainer.innerHTML = createTreeHTML(treeData);
+    }
+
+    // Daraxt HTML
+    function createTreeHTML(node) {
+      const selected = node.name === selectedNodeName ? "selected" : "";
+      let html = `<ul><li><span class="${selected}" onclick="selectNode('${node.name}')">${node.name}</span>`;
+      if (node.children && node.children.length > 0) {
+        html += "<ul>";
+        node.children.forEach(child => {
+          html += createTreeHTML(child);
+        });
+        html += "</ul>";
+      }
+      html += "</li></ul>";
+      return html;
+    }
+
+    // Shaxsni tanlash
+    function selectNode(name) {
+      selectedNodeName = selectedNodeName === name ? null : name;
+      renderTree();
+    }
+
+    // Tugunni topish
+    function findNode(node, name) {
+      if (node.name === name) return node;
+      for (let child of node.children) {
+        const found = findNode(child, name);
+        if (found) return found;
+      }
+      return null;
+    }
+
+    // Farzand qo‘shish
     function addChild() {
-      const name = prompt("Yangi o‘g‘ilning ismini kiriting:");
-      if (name) {
-        config.nodeStructure.children.push({ text: { name } });
-        document.querySelector("#tree").innerHTML = ""; // Eski daraxtni tozalash
-        chart = new Treant(config); // Yangilash
+      if (!selectedNodeName) return alert("Avval kimga o‘g‘il qo‘shmoqchi ekanligingizni belgilang!");
+      const newName = prompt("Yangi o‘g‘il ismini kiriting:");
+      if (!newName) return;
+      const parent = findNode(treeData, selectedNodeName);
+      parent.children.push({ name: newName, children: [] });
+      renderTree();
+    }
+
+    // Belgilangan shaxsni o‘chirish
+    function deleteSelected() {
+      if (!selectedNodeName) return alert("Avval o‘chirmoqchi bo‘lgan shaxsni belgilang!");
+      if (selectedNodeName === "Babaq") return alert("Babaqni o‘chirish mumkin emas!");
+      if (confirm(`${selectedNodeName}ni o‘chirmoqchimisiz?`)) {
+        removeNode(treeData, selectedNodeName);
+        selectedNodeName = null;
+        renderTree();
       }
     }
+
+    function removeNode(node, name) {
+      node.children = node.children.filter(c => c.name !== name);
+      node.children.forEach(c => removeNode(c, name));
+    }
+
+    // Saqlash
+    function saveTree() {
+      localStorage.setItem("babaqTree", JSON.stringify(treeData));
+      alert("✅ Daraxt saqlandi!");
+    }
+
+    // Qayta tiklash
+    function resetTree() {
+      if (confirm("Barcha o‘zgarishlar o‘chadi. Qayta tiklaysizmi?")) {
+        treeData = structuredClone(defaultTree);
+        localStorage.setItem("babaqTree", JSON.stringify(treeData));
+        selectedNodeName = null;
+        renderTree();
+      }
+    }
+
+    // Boshlang‘ich chizish
+    renderTree();
   </script>
+
 </body>
 </html>
