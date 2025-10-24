@@ -10,7 +10,7 @@
       font-family: "Segoe UI", Arial, sans-serif;
       background: #f4f8fb;
       text-align: center;
-      overflow-x: hidden;
+      overflow: hidden;
     }
 
     header {
@@ -45,58 +45,14 @@
     }
 
     .tree-container {
-      display: flex;
-      justify-content: center;
-      margin-top: 20px;
-      padding: 20px;
-    }
-
-    .tree ul {
       position: relative;
-      padding-top: 20px;
-      transition: all 0.5s;
-      display: flex;
-      justify-content: center;
+      width: 100%;
+      height: calc(100vh - 150px);
+      overflow: auto;
     }
 
-    .tree li {
-      list-style-type: none;
-      text-align: center;
-      position: relative;
-      padding: 20px 5px 0 5px;
-      transition: all 0.5s;
-    }
-
-    /* Chiziqlar */
-    .tree li::before, .tree li::after {
-      content: '';
+    .node {
       position: absolute;
-      top: 0;
-      border-top: 2px solid #ccc;
-      width: 50%;
-      height: 20px;
-    }
-
-    .tree li::before {
-      right: 50%;
-      border-right: 2px solid #ccc;
-    }
-
-    .tree li::after {
-      left: 50%;
-      border-left: 2px solid #ccc;
-    }
-
-    .tree li:only-child::before, .tree li:only-child::after {
-      display: none;
-    }
-
-    .tree li:only-child {
-      padding-top: 0;
-    }
-
-    /* Tugun (shaxs) ko‘rinishi */
-    .tree li span {
       display: inline-block;
       background: white;
       border: 2px solid #007bff;
@@ -107,9 +63,10 @@
       cursor: pointer;
       box-shadow: 0 2px 6px rgba(0,0,0,0.15);
       transition: 0.3s;
+      white-space: nowrap;
     }
 
-    .tree li span:hover {
+    .node:hover {
       background: #e8f0ff;
       transform: scale(1.05);
     }
@@ -118,6 +75,14 @@
       background: #007bff !important;
       color: white !important;
       box-shadow: 0 0 15px rgba(0,123,255,0.7);
+    }
+
+    svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      overflow: visible;
     }
   </style>
 </head>
@@ -132,61 +97,99 @@
     <button onclick="resetTree()">♻️ Qayta tiklash</button>
   </div>
 
-  <div class="tree-container">
-    <div id="tree" class="tree"></div>
+  <div class="tree-container" id="treeContainer">
+    <svg id="lines"></svg>
   </div>
 
   <script>
-    // Boshlang‘ich daraxt
     const defaultTree = {
       name: "Babaq",
       children: [
-        { name: "Dauletnazar", children: [] },
-        { name: "Xakim Bolis", children: [] }
+        {
+          name: "Dauletnazar",
+          children: [
+            { name: "rustem", children: [{ name: "dwd", children: [] }] },
+            { name: "azamat", children: [] }
+          ]
+        },
+        {
+          name: "Xakim Bolis",
+          children: [
+            { name: "palenshe", children: [] },
+            { name: "tolenshe", children: [] }
+          ]
+        }
       ]
     };
 
     let treeData = JSON.parse(localStorage.getItem("babaqTree")) || structuredClone(defaultTree);
     let selectedNodeName = null;
 
-    // Daraxtni chizish
     function renderTree() {
-      const treeContainer = document.getElementById("tree");
-      treeContainer.innerHTML = createTreeHTML(treeData);
-    }
+      const container = document.getElementById("treeContainer");
+      const svg = document.getElementById("lines");
+      container.querySelectorAll(".node").forEach(n => n.remove());
+      svg.innerHTML = "";
 
-    // Daraxt HTML
-    function createTreeHTML(node) {
-      const selected = node.name === selectedNodeName ? "selected" : "";
-      let html = `<ul><li><span class="${selected}" onclick="selectNode('${node.name}')">${node.name}</span>`;
-      if (node.children && node.children.length > 0) {
-        html += "<ul>";
-        node.children.forEach(child => {
-          html += createTreeHTML(child);
-        });
-        html += "</ul>";
+      const levelGapY = 120;
+      const siblingGapX = 140;
+      const nodePositions = {};
+
+      function layout(node, depth, xOffset) {
+        let width = 0;
+        if (node.children.length === 0) {
+          width = 1;
+        } else {
+          width = node.children.map(c => layout(c, depth + 1, xOffset + width)).reduce((a, b) => a + b, 0);
+        }
+        const mid = xOffset + width / 2;
+        nodePositions[node.name] = { x: mid * siblingGapX + 100, y: depth * levelGapY + 50, node };
+        return width;
       }
-      html += "</li></ul>";
-      return html;
+
+      layout(treeData, 0, 0);
+
+      for (const key in nodePositions) {
+        const n = nodePositions[key];
+        const div = document.createElement("div");
+        div.className = "node" + (selectedNodeName === n.node.name ? " selected" : "");
+        div.innerText = n.node.name;
+        div.style.left = `${n.x}px`;
+        div.style.top = `${n.y}px`;
+        div.onclick = () => selectNode(n.node.name);
+        container.appendChild(div);
+
+        n.node.children.forEach(child => {
+          const c = nodePositions[child.name];
+          const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          const startX = n.x + 60;
+          const startY = n.y + 40;
+          const endX = c.x + 60;
+          const endY = c.y;
+          const curve = `M ${startX},${startY} C ${startX},${(startY + endY) / 2} ${endX},${(startY + endY) / 2} ${endX},${endY}`;
+          path.setAttribute("d", curve);
+          path.setAttribute("stroke", "#007bff");
+          path.setAttribute("fill", "none");
+          path.setAttribute("stroke-width", "2");
+          svg.appendChild(path);
+        });
+      }
     }
 
-    // Shaxsni tanlash
     function selectNode(name) {
       selectedNodeName = selectedNodeName === name ? null : name;
       renderTree();
     }
 
-    // Tugunni topish
     function findNode(node, name) {
       if (node.name === name) return node;
-      for (let child of node.children) {
-        const found = findNode(child, name);
+      for (const c of node.children) {
+        const found = findNode(c, name);
         if (found) return found;
       }
       return null;
     }
 
-    // Farzand qo‘shish
     function addChild() {
       if (!selectedNodeName) return alert("Avval kimga o‘g‘il qo‘shmoqchi ekanligingizni belgilang!");
       const newName = prompt("Yangi o‘g‘il ismini kiriting:");
@@ -196,7 +199,6 @@
       renderTree();
     }
 
-    // Belgilangan shaxsni o‘chirish
     function deleteSelected() {
       if (!selectedNodeName) return alert("Avval o‘chirmoqchi bo‘lgan shaxsni belgilang!");
       if (selectedNodeName === "Babaq") return alert("Babaqni o‘chirish mumkin emas!");
@@ -212,13 +214,11 @@
       node.children.forEach(c => removeNode(c, name));
     }
 
-    // Saqlash
     function saveTree() {
       localStorage.setItem("babaqTree", JSON.stringify(treeData));
       alert("✅ Daraxt saqlandi!");
     }
 
-    // Qayta tiklash
     function resetTree() {
       if (confirm("Barcha o‘zgarishlar o‘chadi. Qayta tiklaysizmi?")) {
         treeData = structuredClone(defaultTree);
@@ -228,9 +228,7 @@
       }
     }
 
-    // Boshlang‘ich chizish
     renderTree();
   </script>
-
 </body>
 </html>
