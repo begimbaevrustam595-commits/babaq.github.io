@@ -48,7 +48,8 @@
       position: relative;
       width: 100%;
       height: calc(100vh - 150px);
-      overflow: auto;
+      overflow: hidden;
+      cursor: grab;
     }
 
     .node {
@@ -98,7 +99,9 @@
   </div>
 
   <div class="tree-container" id="treeContainer">
-    <svg id="lines"></svg>
+    <div id="treeWrapper">
+      <svg id="lines"></svg>
+    </div>
   </div>
 
   <script>
@@ -125,47 +128,63 @@
     let treeData = JSON.parse(localStorage.getItem("babaqTree")) || structuredClone(defaultTree);
     let selectedNodeName = null;
 
-    function renderTree() {
-      const container = document.getElementById("treeContainer");
-      const svg = document.getElementById("lines");
-      container.querySelectorAll(".node").forEach(n => n.remove());
-      svg.innerHTML = "";
+    function computeLayout(node, depth = 0, xStart = 0) {
+      const levelGapY = 140;
+      const siblingGapX = 160;
 
-      const levelGapY = 120;
-      const siblingGapX = 140;
-      const nodePositions = {};
-
-      function layout(node, depth, xOffset) {
-        let width = 0;
-        if (node.children.length === 0) {
-          width = 1;
-        } else {
-          width = node.children.map(c => layout(c, depth + 1, xOffset + width)).reduce((a, b) => a + b, 0);
-        }
-        const mid = xOffset + width / 2;
-        nodePositions[node.name] = { x: mid * siblingGapX + 100, y: depth * levelGapY + 50, node };
-        return width;
+      if (!node.children || node.children.length === 0) {
+        node.width = 1;
+        node.x = xStart;
+        node.y = depth * levelGapY;
+        return 1;
       }
 
-      layout(treeData, 0, 0);
+      let totalWidth = 0;
+      for (let child of node.children) {
+        totalWidth += computeLayout(child, depth + 1, xStart + totalWidth);
+      }
+
+      node.width = totalWidth;
+      node.x = xStart + totalWidth / 2 - 0.5;
+      node.y = depth * levelGapY;
+      return totalWidth;
+    }
+
+    function renderTree() {
+      const container = document.getElementById("treeContainer");
+      const wrapper = document.getElementById("treeWrapper");
+      const svg = document.getElementById("lines");
+      wrapper.querySelectorAll(".node").forEach(n => n.remove());
+      svg.innerHTML = "";
+
+      computeLayout(treeData);
+
+      const nodePositions = {};
+      function collectPositions(node) {
+        nodePositions[node.name] = node;
+        node.children.forEach(collectPositions);
+      }
+      collectPositions(treeData);
 
       for (const key in nodePositions) {
         const n = nodePositions[key];
         const div = document.createElement("div");
-        div.className = "node" + (selectedNodeName === n.node.name ? " selected" : "");
-        div.innerText = n.node.name;
-        div.style.left = `${n.x}px`;
-        div.style.top = `${n.y}px`;
-        div.onclick = () => selectNode(n.node.name);
-        container.appendChild(div);
+        div.className = "node" + (selectedNodeName === n.name ? " selected" : "");
+        div.innerText = n.name;
+        div.style.left = `${n.x * 160 + 100}px`;
+        div.style.top = `${n.y + 60}px`;
+        div.onclick = () => selectNode(n.name);
+        wrapper.appendChild(div);
+      }
 
-        n.node.children.forEach(child => {
-          const c = nodePositions[child.name];
+      for (const key in nodePositions) {
+        const parent = nodePositions[key];
+        parent.children.forEach(child => {
           const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-          const startX = n.x + 60;
-          const startY = n.y + 40;
-          const endX = c.x + 60;
-          const endY = c.y;
+          const startX = parent.x * 160 + 150;
+          const startY = parent.y + 100;
+          const endX = child.x * 160 + 150;
+          const endY = child.y + 60;
           const curve = `M ${startX},${startY} C ${startX},${(startY + endY) / 2} ${endX},${(startY + endY) / 2} ${endX},${endY}`;
           path.setAttribute("d", curve);
           path.setAttribute("stroke", "#007bff");
@@ -227,6 +246,38 @@
         renderTree();
       }
     }
+
+    // 🖱️ Pan & Zoom
+    const container = document.getElementById("treeContainer");
+    const wrapper = document.getElementById("treeWrapper");
+    let isPanning = false, startX, startY, offsetX = 0, offsetY = 0, scale = 1;
+
+    container.addEventListener("mousedown", e => {
+      isPanning = true;
+      startX = e.clientX - offsetX;
+      startY = e.clientY - offsetY;
+      container.style.cursor = "grabbing";
+    });
+
+    container.addEventListener("mouseup", () => {
+      isPanning = false;
+      container.style.cursor = "grab";
+    });
+
+    container.addEventListener("mousemove", e => {
+      if (!isPanning) return;
+      offsetX = e.clientX - startX;
+      offsetY = e.clientY - startY;
+      wrapper.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+    });
+
+    container.addEventListener("wheel", e => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 1.1 : 0.9;
+      scale *= delta;
+      scale = Math.min(Math.max(scale, 0.4), 2);
+      wrapper.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+    });
 
     renderTree();
   </script>
