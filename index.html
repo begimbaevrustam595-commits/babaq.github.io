@@ -1,83 +1,79 @@
 <!DOCTYPE html>
-<html lang="kk">
+<html lang="uz">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Babanazar (Babamurat) – Шежіре</title>
+  <title>Babaq Shajarasi</title>
+  <link rel="stylesheet" href="https://fperucic.github.io/treant-js/Treant.css">
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f5f7fa;
+      background-color: #f4f6f8;
       margin: 0;
-      color: #333;
+      padding: 0;
+      text-align: center;
     }
-    header {
+
+    h2 {
       background: #004aad;
-      color: #fff;
-      text-align: center;
-      padding: 20px;
-      font-size: 26px;
-      font-weight: bold;
+      color: white;
+      padding: 15px 0;
+      margin: 0;
     }
-    section {
-      padding: 30px;
-      text-align: center;
+
+    #tree {
+      width: 100%;
+      height: 90vh;
+      overflow: auto;
+      margin-top: 10px;
     }
-    .tree {
-      text-align: center;
-      display: inline-block;
-      padding: 10px;
-    }
-    .node {
-      background: #fff;
-      border: 2px solid #004aad;
-      border-radius: 12px;
-      display: inline-block;
+
+    button {
+      background: #ffb300;
+      border: none;
       padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
       margin: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
-    .children {
-      margin-left: 40px;
-    }
-    footer {
-      background: #222;
-      color: #fff;
-      text-align: center;
-      padding: 10px;
-      font-size: 14px;
-      margin-top: 40px;
-    }
-    .line {
-      width: 2px;
-      height: 20px;
-      background: #004aad;
-      margin: 0 auto;
+
+    button:hover {
+      background: #ffaa00;
     }
   </style>
 </head>
 <body>
-  <header>Babanazar (Babamurat)</header>
-  <section>
-    <h2>Ұрпақ шежіресі</h2>
-    <div class="tree">
-      <div class="node">Babanazar (Babamurat)</div>
-      <div class="line"></div>
-      <div class="children">
-        <div class="node">Dauletnazar</div>
-        <div class="line"></div>
-        <div class="children">
-          <div class="node">— Dauletnazarning o‘g‘illari (bu yerga yozing)</div>
-        </div>
-        <div class="node">Xakim Bo‘lis</div>
-        <div class="line"></div>
-        <div class="children">
-          <div class="node">— Xakim Bo‘lisning o‘g‘illari (bu yerga yozing)</div>
-        </div>
-      </div>
-    </div>
-  </section>
+  <h2>Babaq avlodlari shajarasi</h2>
+  <button onclick="addChild()">+ O‘g‘il qo‘shish</button>
+  <div id="tree"></div>
 
-  <footer>© 2025 Babanazar.kz | Барлық құқықтар қорғалған</footer>
+  <!-- Treant kutubxonalari -->
+  <script src="https://fperucic.github.io/treant-js/vendor/raphael.js"></script>
+  <script src="https://fperucic.github.io/treant-js/Treant.js"></script>
+
+  <script>
+    let config = {
+      chart: {
+        container: "#tree",
+        node: { collapsable: true },
+        animation: { nodeAnimation: "easeOutBounce", nodeSpeed: 700 }
+      },
+      nodeStructure: {
+        text: { name: "Babaq" },
+        children: []
+      }
+    };
+
+    let chart = new Treant(config);
+
+    function addChild() {
+      const name = prompt("Yangi o‘g‘ilning ismini kiriting:");
+      if (name) {
+        config.nodeStructure.children.push({ text: { name } });
+        document.querySelector("#tree").innerHTML = ""; // Eski daraxtni tozalash
+        chart = new Treant(config); // Yangilash
+      }
+    }
+  </script>
 </body>
 </html>
